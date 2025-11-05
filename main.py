@@ -10,7 +10,8 @@ from flask import Flask,render_template,request,redirect,url_for,session,jsonify
 client = MongoClient("mongodb://localhost:27017")
 
 db = client["movie_tracker_db"] 
-collection = db["users"]
+user_collection = db["users"]
+movie_collection = db["movies"]
 IMAGE_BASE = "https://image.tmdb.org/t/p/"
 
 
@@ -25,7 +26,7 @@ def login_page():
         username = request.form.get('username').lower()
         password = request.form.get('password').encode('utf-8')
 
-        user = collection.find_one({"username": username})
+        user = user_collection.find_one({"username": username})
         if user and bcrypt.checkpw(password, user["password_hash"]):
             # Store username in the session 
             session["username"] = username
@@ -46,11 +47,11 @@ def signup_page():
         user_password = request.form.get('password')
         hashed_password = bcrypt.hashpw(user_password.encode('utf-8'), bcrypt.gensalt())
 
-        if collection.find_one({"username": username}):
+        if user_collection.find_one({"username": username}):
             error="Username already exists"
             return render_template("login_page.html",error=error)
 
-        collection.insert_one({
+        user_collection.insert_one({
             "username": username,
             "password_hash": hashed_password  
         })
@@ -62,24 +63,46 @@ def signup_page():
 @app.route('/homepage', methods=['GET', 'POST'])
 def home_page():
     username = session.get("username", "").upper()
-    query_results = []  
+    query_results = []
 
     if request.method == 'POST':
-        user_query = request.form.get("query")
-        # user_query_results = search_movie_by_api_key(user_query, api_key)
-        user_query_results = solutions
-        for movie in user_query_results:
-            query_results.append({
-                "id":movie.get("id"),
-                "title": movie.get("title"),
-                "release_date": movie.get("release_date"),
-                "overview": movie.get("overview"),
-                "vote_average": movie.get("vote_average"),
-                "vote_count": movie.get("vote_count"),
-                "poster_url": IMAGE_BASE + "w342" + movie.get("poster_path") if movie.get("poster_path") else None,
-            })
+        user_query = request.form.get("query").lower()
 
-    return render_template("homepage.html", username=username, movies=query_results)
+        # Check if this query was already stored
+        existing_movies = list(movie_collection.find({"user_query": user_query}))
+
+        if existing_movies:
+            print("I am displaying it from the database")
+            # Remove MongoDB's _id field for display
+            for movie in existing_movies:
+                movie.pop('_id', None)
+            query_results = existing_movies
+
+        else:
+            user_query_results = search_movie_by_api_key(user_query, api_key)
+            # user_query_results = solutions
+            for movie in user_query_results:
+                query_results.append({
+                    "user_query": user_query,
+                    "id": movie.get("id"),
+                    "title": movie.get("title"),
+                    "release_date": movie.get("release_date"),
+                    "overview": movie.get("overview"),
+                    "vote_average": movie.get("vote_average"),
+                    "vote_count": movie.get("vote_count"),
+                    "poster_url": IMAGE_BASE + "w342" + movie.get("poster_path") if movie.get("poster_path") else None,
+                })
+
+            if query_results:  # Only insert if there are results
+                movie_collection.insert_many(query_results)
+                print(f"\nI have added it {user_query}\n\n")
+
+    return render_template("homepage.html", 
+                          username=username, 
+                          movies=query_results,
+                          watchlist_count=0,
+                          watched_count=0)
+
 
 
 @app.route('/movie/<int:movie_id>', methods=['GET'])
@@ -105,6 +128,7 @@ def get_movie_details(movie_id):
                 "vote_count": movie_data.get("vote_count"),
                 "genres": ", ".join([genre["name"] for genre in movie_data.get("genres", [])]),
                 "poster_url": IMAGE_BASE + "w500" + movie_data.get("poster_path") if movie_data.get("poster_path") else None,
+                "backdrop_url": IMAGE_BASE + "w1280" + movie_data.get("backdrop_path") if movie_data.get("backdrop_path") else None
             }
             
             return jsonify(movie_details)
