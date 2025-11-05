@@ -66,8 +66,10 @@ def home_page():
     query_results = []
 
     # Fetch user watched list safely
-    user_doc = user_collection.find_one({"username": username}, {"_id": 0, "watched": 1})
+    user_doc = user_collection.find_one({"username": username}, {"_id": 0, "watched": 1,"watch_list":1})
     watched_count = len(user_doc.get('watched', []))  # default to empty list if field missing
+    watchlist_count = len(user_doc.get('watch_list', []))
+
 
     if request.method == 'POST':
         user_query = request.form.get("query", "").lower()
@@ -93,6 +95,7 @@ def home_page():
                     "vote_average": movie.get("vote_average"),
                     "vote_count": movie.get("vote_count"),
                     "poster_url": IMAGE_BASE + "w342" + movie.get("poster_path") if movie.get("poster_path") else None,
+                    "reviews": [],
                 })
 
             if query_results:
@@ -103,8 +106,8 @@ def home_page():
         "homepage.html",
         username=username.upper(),
         movies=query_results,
-        watchlist_count=watched_count,
-        watched_count=0
+        watchlist_count=watchlist_count,
+        watched_count=watched_count
     )
 
 
@@ -145,17 +148,15 @@ def get_movie_details(movie_id):
 
 
 @app.route('/add_to_watchlist', methods=['POST'])
-def add_to_watched():
+def add_to_watchlist():
     data = request.get_json()
     movie_id = data.get('movieId')
     username = data.get('username').lower()
     
     result = user_collection.update_one(
         {"username": username},           
-        {"$addToSet": {"watched": movie_id}}  # Adds only if not present
+        {"$addToSet": {"watch_list": movie_id}} 
     )
-
-    print(" i am here now ", result)
     
     if result.modified_count > 0:
         message = f"Movie {movie_id} marked as watched for {username}."
@@ -166,6 +167,39 @@ def add_to_watched():
 
     return jsonify({"message": message})
 
+
+@app.route('/add_to_watched', methods=['POST'])
+def add_to_watched():
+    data = request.get_json()
+    movie_id = data.get('movieId')
+    username = data.get('username').lower()
+    
+    result = user_collection.update_one(
+        {"username": username},           
+        {"$addToSet": {"watched": movie_id}} 
+    )
+
+    
+    if result.modified_count > 0:
+        message = f"Movie {movie_id} marked as watched for {username}."
+        print(message)
+    else:
+        message = f"Movie {movie_id} is already in {username}'s watched list."
+        print(message)
+
+    return jsonify({"message": message})
+
+@app.route('/submit_reviews',methods=['POST'])
+def sumbit_reviews():
+    data = request.get_json()
+    movieId = data.get('movieId')
+    reviewText = data.get('reviewText')
+    username = data.get('username')
+    reviewdate = data.get('date')
+    print(f"\n{reviewText}:{username}:{reviewdate}\n")
+
+
+    return jsonify({"message": reviewText})
 
 
 

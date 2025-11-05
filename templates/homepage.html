@@ -11,9 +11,9 @@
     <nav>
         <h1>Movie Tracker</h1>
         <ul>
-            <li><a href="/">Watch Later ({{ watchlist_count }})</a></li>
-            <li><a href="/">Watched ({{ watched_count }})</a></li>
-            <li><a href="/">Notifications</a></li>
+            <li><a href="#">Watch Later ({{ watchlist_count }})</a></li>
+            <li><a href="#">Watched ({{ watched_count }})</a></li>
+            <li><a href="#">Notifications</a></li>
             <li><a href="/">Logout</a></li>
         </ul>
     </nav>
@@ -197,14 +197,31 @@
                 .catch(error => console.error('Error:', error));
             }   
 
+        function addToWatched(movieId) {
+            fetch('/add_to_watched', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ movieId: movieId, username: username })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const msgDiv = document.getElementById('message');
+                    msgDiv.textContent = data.message; // message from backend
+                    msgDiv.style.display = 'block';
+
+                    // Add a class for styling (optional)
+                    msgDiv.classList.add('show-message');
+
+                    // Hide message after 3 seconds
+                    setTimeout(() => {
+                        msgDiv.style.display = 'none';
+                        msgDiv.classList.remove('show-message');
+                    }, 3000);
+                })
+                .catch(error => console.error('Error:', error));
+            }
 
         
-
-        // Function to mark as watched
-        function addToWatched(movieId) {
-            // Implement backend call here
-            alert('Marked as watched: ' + movieId);
-        }
 
         // Function to submit review
         function submitReview(movieId) {
@@ -213,14 +230,39 @@
                 alert('Please write a review first!');
                 return;
             }
-            
-            // Implement backend call here
-            // For now, just clear the textarea
+
+            // Get current date in a readable format (e.g. 2025-11-05)
+            const currentDate = new Date().toISOString().split('T')[0];
+
+            fetch('/submit_reviews', {  // also fix the typo: "sumbit" → "submit"
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    reviewText: reviewText,
+                    username: username,
+                    date: currentDate,
+                    movieId: movieId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const msgDiv = document.getElementById('message');
+                msgDiv.textContent = data.message; // message from backend
+                msgDiv.style.display = 'block';
+
+                msgDiv.classList.add('show-message');
+
+                // Hide message after 3 seconds
+                setTimeout(() => {
+                    msgDiv.style.display = 'none';
+                    msgDiv.classList.remove('show-message');
+                }, 3000);
+            })
+            .catch(error => console.error('Error:', error));
+
             document.getElementById('reviewText').value = '';
-            alert('Review submitted!');
-            
-            // You would refresh the reviews list here after successful submission
         }
+
     </script>
 </body>
 </html>
