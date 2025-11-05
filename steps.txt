@@ -1,55 +1,7 @@
-1. Follow / Social Features
-
-Users can follow other users.
-
-See a feed of what movies your friends added/reviewed.
-
-Adds relational behavior between users.
+all that is left is notifcations.
+Get notification when someone gives a review to a movie u already planning to watch
 
 
+Display watched and watch later
 
-
-2. Likes / Upvotes on Reviews
-
-Users can like or upvote reviews.
-
-Sort reviews by most liked for each movie.
-
-Encourages engagement and adds dynamic queries in MongoDB.
-
-
-
-
-
-3. Search Enhancements
-
-Autocomplete search bar with movie suggestions (JS + API).
-
-Filter movies by genre, year, rating.
-
-Use cached API data for faster results.
-
-
-
-
-
-4. Activity Feed / Notifications
-
-Expand notifications to real-time feed of activity (WebSockets optional).
-
-Show who added or reviewed a movie recently.
-
-
-
-
-
-
-5. User Profiles
-
-Users can have profiles showing:
-
-Their lists (watch later, watched, favorites)
-
-Their reviews and ratings
-
-Average rating given across all movies
+and add upvote and downvote to the reviews

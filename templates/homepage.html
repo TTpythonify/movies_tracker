@@ -22,10 +22,7 @@
     <section class="welcome">
         <h2>Welcome, {{ username }}!</h2>
         <p>Search for your favorite movies and start tracking them.</p>
-
     </section>
-
-    
 
     <!-- Main content -->
     <main>
@@ -139,21 +136,18 @@
 
                         <!-- Reviews List -->
                         <div class="reviews-list" id="reviewsList">
-                            <!-- Sample reviews - replace with dynamic data from backend -->
-                            <div class="review-item">
-                                <div class="review-header">
-                                    <strong>John Doe</strong>
-                                    <span class="review-date">2 days ago</span>
-                                </div>
-                                <p class="review-text">Amazing movie! The cinematography was stunning and the plot kept me engaged throughout.</p>
-                            </div>
-                            <div class="review-item">
-                                <div class="review-header">
-                                    <strong>Jane Smith</strong>
-                                    <span class="review-date">1 week ago</span>
-                                </div>
-                                <p class="review-text">Great performances by the cast. Highly recommend!</p>
-                            </div>
+                            ${movie.reviews && movie.reviews.length > 0 
+                                ? movie.reviews.map(review => `
+                                    <div class="review-item">
+                                        <div class="review-header">
+                                            <strong>${review.username}</strong>
+                                            <span class="review-date">${review.date}</span>
+                                        </div>
+                                        <p class="review-text">${review.reviewText}</p>
+                                    </div>
+                                `).join('')
+                                : '<p class="no-reviews">No reviews yet. Be the first to review!</p>'
+                            }
                         </div>
                     </div>
                 </div>
@@ -182,20 +176,17 @@
                 .then(response => response.json())
                 .then(data => {
                     const msgDiv = document.getElementById('message');
-                    msgDiv.textContent = data.message; // message from backend
+                    msgDiv.textContent = data.message;
                     msgDiv.style.display = 'block';
-
-                    // Add a class for styling (optional)
                     msgDiv.classList.add('show-message');
 
-                    // Hide message after 3 seconds
                     setTimeout(() => {
                         msgDiv.style.display = 'none';
                         msgDiv.classList.remove('show-message');
                     }, 3000);
                 })
                 .catch(error => console.error('Error:', error));
-            }   
+        }   
 
         function addToWatched(movieId) {
             fetch('/add_to_watched', {
@@ -206,22 +197,17 @@
                 .then(response => response.json())
                 .then(data => {
                     const msgDiv = document.getElementById('message');
-                    msgDiv.textContent = data.message; // message from backend
+                    msgDiv.textContent = data.message;
                     msgDiv.style.display = 'block';
-
-                    // Add a class for styling (optional)
                     msgDiv.classList.add('show-message');
 
-                    // Hide message after 3 seconds
                     setTimeout(() => {
                         msgDiv.style.display = 'none';
                         msgDiv.classList.remove('show-message');
                     }, 3000);
                 })
                 .catch(error => console.error('Error:', error));
-            }
-
-        
+        }
 
         // Function to submit review
         function submitReview(movieId) {
@@ -231,10 +217,9 @@
                 return;
             }
 
-            // Get current date in a readable format (e.g. 2025-11-05)
             const currentDate = new Date().toISOString().split('T')[0];
 
-            fetch('/submit_reviews', {  // also fix the typo: "sumbit" → "submit"
+            fetch('/submit_reviews', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -247,22 +232,26 @@
             .then(response => response.json())
             .then(data => {
                 const msgDiv = document.getElementById('message');
-                msgDiv.textContent = data.message; // message from backend
+                msgDiv.textContent = data.message;
                 msgDiv.style.display = 'block';
-
                 msgDiv.classList.add('show-message');
 
-                // Hide message after 3 seconds
+                document.getElementById('reviewText').value = '';
+
+                // Reload movie details to show new review
+                fetch(`/movie/${movieId}`)
+                    .then(response => response.json())
+                    .then(movieData => {
+                        displayMovieDetails(movieData);
+                    });
+
                 setTimeout(() => {
                     msgDiv.style.display = 'none';
                     msgDiv.classList.remove('show-message');
                 }, 3000);
             })
             .catch(error => console.error('Error:', error));
-
-            document.getElementById('reviewText').value = '';
         }
-
     </script>
 </body>
 </html>

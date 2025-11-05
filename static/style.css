@@ -643,6 +643,13 @@ main {
     padding-right: 8px;
 }
 
+.no-reviews {
+    text-align: center;
+    color: #999;
+    padding: 30px 20px;
+    font-style: italic;
+}
+
 .reviews-list::-webkit-scrollbar {
     width: 6px;
 }

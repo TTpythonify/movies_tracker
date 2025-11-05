@@ -67,7 +67,7 @@ def home_page():
 
     # Fetch user watched list safely
     user_doc = user_collection.find_one({"username": username}, {"_id": 0, "watched": 1,"watch_list":1})
-    watched_count = len(user_doc.get('watched', []))  # default to empty list if field missing
+    watched_count = len(user_doc.get('watched', [])) 
     watchlist_count = len(user_doc.get('watch_list', []))
 
 
@@ -78,7 +78,7 @@ def home_page():
         existing_movies = list(movie_collection.find({"user_query": user_query}))
 
         if existing_movies:
-            print("I am displaying it from the database")
+            print(f"\n{existing_movies}\n")
             for movie in existing_movies:
                 movie.pop('_id', None)
             query_results = existing_movies
@@ -100,7 +100,6 @@ def home_page():
 
             if query_results:
                 movie_collection.insert_many(query_results)
-                print(f"\nI have added it {user_query}\n\n")
 
     return render_template(
         "homepage.html",
@@ -123,6 +122,10 @@ def get_movie_details(movie_id):
         if response.status_code == 200:
             movie_data = response.json()
             
+            # Get reviews from database
+            db_movie = movie_collection.find_one({"id": movie_id}, {"_id": 0, "reviews": 1})
+            reviews = db_movie.get("reviews", []) if db_movie else []
+            
             # Format the response
             movie_details = {
                 "id": movie_data.get("id"),
@@ -135,7 +138,8 @@ def get_movie_details(movie_id):
                 "vote_count": movie_data.get("vote_count"),
                 "genres": ", ".join([genre["name"] for genre in movie_data.get("genres", [])]),
                 "poster_url": IMAGE_BASE + "w500" + movie_data.get("poster_path") if movie_data.get("poster_path") else None,
-                "backdrop_url": IMAGE_BASE + "w1280" + movie_data.get("backdrop_path") if movie_data.get("backdrop_path") else None
+                "backdrop_url": IMAGE_BASE + "w1280" + movie_data.get("backdrop_path") if movie_data.get("backdrop_path") else None,
+                "reviews": reviews
             }
             
             return jsonify(movie_details)
@@ -144,8 +148,6 @@ def get_movie_details(movie_id):
             
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
 
 @app.route('/add_to_watchlist', methods=['POST'])
 def add_to_watchlist():
@@ -189,16 +191,25 @@ def add_to_watched():
 
     return jsonify({"message": message})
 
+
 @app.route('/submit_reviews',methods=['POST'])
 def sumbit_reviews():
     data = request.get_json()
+
     movieId = data.get('movieId')
     reviewText = data.get('reviewText')
     username = data.get('username')
     reviewdate = data.get('date')
-    print(f"\n{reviewText}:{username}:{reviewdate}\n")
+    review = {
+        "username": username,
+        "reviewText": reviewText,
+        "date": reviewdate
+    }
 
-
+    movie_collection.update_one(
+        {"id": movieId},
+        {"$push": {"reviews": review}}
+    )
     return jsonify({"message": reviewText})
 
 
