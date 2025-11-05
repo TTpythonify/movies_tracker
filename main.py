@@ -62,25 +62,27 @@ def signup_page():
 
 @app.route('/homepage', methods=['GET', 'POST'])
 def home_page():
-    username = session.get("username", "").upper()
+    username = session.get("username", "").lower() 
     query_results = []
 
+    # Fetch user watched list safely
+    user_doc = user_collection.find_one({"username": username}, {"_id": 0, "watched": 1})
+    watched_count = len(user_doc.get('watched', []))  # default to empty list if field missing
+
     if request.method == 'POST':
-        user_query = request.form.get("query").lower()
+        user_query = request.form.get("query", "").lower()
 
         # Check if this query was already stored
         existing_movies = list(movie_collection.find({"user_query": user_query}))
 
         if existing_movies:
             print("I am displaying it from the database")
-            # Remove MongoDB's _id field for display
             for movie in existing_movies:
                 movie.pop('_id', None)
             query_results = existing_movies
 
         else:
             user_query_results = search_movie_by_api_key(user_query, api_key)
-            # user_query_results = solutions
             for movie in user_query_results:
                 query_results.append({
                     "user_query": user_query,
@@ -93,15 +95,17 @@ def home_page():
                     "poster_url": IMAGE_BASE + "w342" + movie.get("poster_path") if movie.get("poster_path") else None,
                 })
 
-            if query_results:  # Only insert if there are results
+            if query_results:
                 movie_collection.insert_many(query_results)
                 print(f"\nI have added it {user_query}\n\n")
 
-    return render_template("homepage.html", 
-                          username=username, 
-                          movies=query_results,
-                          watchlist_count=0,
-                          watched_count=0)
+    return render_template(
+        "homepage.html",
+        username=username.upper(),
+        movies=query_results,
+        watchlist_count=watched_count,
+        watched_count=0
+    )
 
 
 
@@ -137,6 +141,39 @@ def get_movie_details(movie_id):
             
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+
+@app.route('/add_to_watchlist', methods=['POST'])
+def add_to_watched():
+    data = request.get_json()
+    movie_id = data.get('movieId')
+    username = data.get('username').lower()
+    
+    result = user_collection.update_one(
+        {"username": username},           
+        {"$addToSet": {"watched": movie_id}}  # Adds only if not present
+    )
+
+    print(" i am here now ", result)
+    
+    if result.modified_count > 0:
+        message = f"Movie {movie_id} marked as watched for {username}."
+        print(message)
+    else:
+        message = f"Movie {movie_id} is already in {username}'s watched list."
+        print(message)
+
+    return jsonify({"message": message})
+
+
+
+
+def get_movies_info(movie_id):
+    movie = movie_collection.find_one({"id":movie_id},{"_id": 0})
+    return movie 
+
+
 
 
 if __name__ == "__main__":
