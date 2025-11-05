@@ -1,5 +1,6 @@
+import os 
 import requests
-from keys import *
+
 
 BASE = "https://api.themoviedb.org/3"
 

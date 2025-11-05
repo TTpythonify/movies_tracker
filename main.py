@@ -1,24 +1,40 @@
+import os
 import bcrypt
-from test import solutions
-from tmdb import *
-from keys import my_secret_key
+import requests
 from pymongo import MongoClient
-from flask import Flask,render_template,request,redirect,url_for,session,jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from dotenv import load_dotenv
 
+# Load environment variables from .env
+load_dotenv()
 
-# Connect to local MongoDB server
-client = MongoClient("mongodb://localhost:27017")
+# Flask app setup
+app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY")
 
-db = client["movie_tracker_db"] 
+# Environment variables
+TMDB_API_KEY = os.environ.get("TMDB_API_KEY")
+MONGO_URI = os.environ.get("MONGO_URI")
+
+# MongoDB connection
+client = MongoClient(MONGO_URI)
+db = client.get_default_database()  # uses database from MONGO_URI
 user_collection = db["users"]
 movie_collection = db["movies"]
+
+# TMDB image base URL
 IMAGE_BASE = "https://image.tmdb.org/t/p/"
 
+# --------------------- Helper Functions --------------------- #
+def search_movie_by_api_key(query, api_key):
+    """Search movies using TMDB API"""
+    url = f"https://api.themoviedb.org/3/search/movie?api_key={api_key}&query={query}&language=en-US"
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json().get("results", [])
+    return []
 
-
-app = Flask(__name__)
-app.secret_key = my_secret_key
-
+# --------------------- Routes --------------------- #
 @app.route('/', methods=['GET','POST'])
 def login_page():
     if request.method == 'POST':
@@ -28,63 +44,55 @@ def login_page():
 
         user = user_collection.find_one({"username": username})
         if user and bcrypt.checkpw(password, user["password_hash"]):
-            # Store username in the session 
             session["username"] = username
             return redirect(url_for("home_page"))
         else:
             error = "Invalid username or password"
-
-            return render_template("login_page.html",error=error)
+            return render_template("login_page.html", error=error)
     return render_template("login_page.html")
 
-
-
-@app.route('/signup', methods = ['POST','GET'])
+@app.route('/signup', methods=['POST','GET'])
 def signup_page():
     if request.method == 'POST':
-        error=''
+        error = ''
         username = request.form.get('username').lower()
         user_password = request.form.get('password')
         hashed_password = bcrypt.hashpw(user_password.encode('utf-8'), bcrypt.gensalt())
 
         if user_collection.find_one({"username": username}):
-            error="Username already exists"
-            return render_template("login_page.html",error=error)
+            error = "Username already exists"
+            return render_template("login_page.html", error=error)
 
         user_collection.insert_one({
             "username": username,
-            "password_hash": hashed_password  
+            "password_hash": hashed_password
         })
         return redirect(url_for("login_page"))
-
     return render_template("signup_page.html")
-
 
 @app.route('/homepage', methods=['GET', 'POST'])
 def home_page():
-    username = session.get("username", "").lower() 
+    username = session.get("username", "").lower()
     query_results = []
 
-    # Fetch user watched list safely
-    user_doc = user_collection.find_one({"username": username}, {"_id": 0, "watched": 1,"watch_list":1})
-    watched_count = len(user_doc.get('watched', [])) 
-    watchlist_count = len(user_doc.get('watch_list', []))
-
+    # Fetch user's watched and watchlist safely
+    user_doc = user_collection.find_one(
+        {"username": username},
+        {"_id": 0, "watched": 1, "watch_list": 1}
+    )
+    watched_count = len(user_doc.get('watched', [])) if user_doc else 0
+    watchlist_count = len(user_doc.get('watch_list', [])) if user_doc else 0
 
     if request.method == 'POST':
         user_query = request.form.get("query", "").lower()
-
-        # Check if this query was already stored
         existing_movies = list(movie_collection.find({"user_query": user_query}))
 
         if existing_movies:
-            print(f"\n{existing_movies}\n")
             for movie in existing_movies:
                 movie.pop('_id', None)
             query_results = existing_movies
-
         else:
-            user_query_results = search_movie_by_api_key(user_query, api_key)
+            user_query_results = search_movie_by_api_key(user_query, TMDB_API_KEY)
             for movie in user_query_results:
                 query_results.append({
                     "user_query": user_query,
@@ -97,7 +105,6 @@ def home_page():
                     "poster_url": IMAGE_BASE + "w342" + movie.get("poster_path") if movie.get("poster_path") else None,
                     "reviews": [],
                 })
-
             if query_results:
                 movie_collection.insert_many(query_results)
 
@@ -109,24 +116,17 @@ def home_page():
         watched_count=watched_count
     )
 
-
-
 @app.route('/movie/<int:movie_id>', methods=['GET'])
 def get_movie_details(movie_id):
-    """API endpoint to get detailed movie information"""
+    """API endpoint to get detailed movie info"""
     try:
-        # Fetch detailed movie info from TMDB API
-        url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}&language=en-US"
+        url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}&language=en-US"
         response = requests.get(url)
-        
         if response.status_code == 200:
             movie_data = response.json()
-            
-            # Get reviews from database
             db_movie = movie_collection.find_one({"id": movie_id}, {"_id": 0, "reviews": 1})
             reviews = db_movie.get("reviews", []) if db_movie else []
-            
-            # Format the response
+
             movie_details = {
                 "id": movie_data.get("id"),
                 "title": movie_data.get("title"),
@@ -141,11 +141,9 @@ def get_movie_details(movie_id):
                 "backdrop_url": IMAGE_BASE + "w1280" + movie_data.get("backdrop_path") if movie_data.get("backdrop_path") else None,
                 "reviews": reviews
             }
-            
             return jsonify(movie_details)
         else:
             return jsonify({"error": "Movie not found"}), 404
-            
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -154,52 +152,43 @@ def add_to_watchlist():
     data = request.get_json()
     movie_id = data.get('movieId')
     username = data.get('username').lower()
-    
+
     result = user_collection.update_one(
-        {"username": username},           
-        {"$addToSet": {"watch_list": movie_id}} 
+        {"username": username},
+        {"$addToSet": {"watch_list": movie_id}}
     )
-    
+
     if result.modified_count > 0:
-        message = f"Movie {movie_id} marked as watched for {username}."
-        print(message)
+        message = f"Movie {movie_id} added to {username}'s watchlist."
     else:
-        message = f"Movie {movie_id} is already in {username}'s watched list."
-        print(message)
-
+        message = f"Movie {movie_id} is already in {username}'s watchlist."
     return jsonify({"message": message})
-
 
 @app.route('/add_to_watched', methods=['POST'])
 def add_to_watched():
     data = request.get_json()
     movie_id = data.get('movieId')
     username = data.get('username').lower()
-    
+
     result = user_collection.update_one(
-        {"username": username},           
-        {"$addToSet": {"watched": movie_id}} 
+        {"username": username},
+        {"$addToSet": {"watched": movie_id}}
     )
 
-    
     if result.modified_count > 0:
         message = f"Movie {movie_id} marked as watched for {username}."
-        print(message)
     else:
         message = f"Movie {movie_id} is already in {username}'s watched list."
-        print(message)
-
     return jsonify({"message": message})
 
-
-@app.route('/submit_reviews',methods=['POST'])
-def sumbit_reviews():
+@app.route('/submit_reviews', methods=['POST'])
+def submit_reviews():
     data = request.get_json()
-
     movieId = data.get('movieId')
     reviewText = data.get('reviewText')
     username = data.get('username')
     reviewdate = data.get('date')
+
     review = {
         "username": username,
         "reviewText": reviewText,
@@ -212,14 +201,10 @@ def sumbit_reviews():
     )
     return jsonify({"message": reviewText})
 
-
-
 def get_movies_info(movie_id):
-    movie = movie_collection.find_one({"id":movie_id},{"_id": 0})
-    return movie 
+    movie = movie_collection.find_one({"id": movie_id}, {"_id": 0})
+    return movie
 
-
-
-
+# --------------------- Run App --------------------- #
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0", port=5000)
