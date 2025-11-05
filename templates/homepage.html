@@ -5,154 +5,150 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Movie Tracker - Home</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f2f2f2;
-            margin: 0;
-            padding: 0;
-        }
-
-        header {
-            background-color: #2c3e50;
-            color: white;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        header h1 {
-            margin: 0;
-        }
-
-        nav a {
-            color: white;
-            text-decoration: none;
-            margin-left: 15px;
-            font-weight: bold;
-        }
-
-        main {
-            padding: 20px;
-            display: flex;
-            gap: 20px;
-        }
-
-        .dashboard, .notifications {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            flex: 1;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        .dashboard h2, .notifications h2 {
-            margin-top: 0;
-        }
-
-        .movie-lists {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .movie-lists button {
-            padding: 10px;
-            border: none;
-            background-color: #3498db;
-            color: white;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .movie-lists button:hover {
-            background-color: #2980b9;
-        }
-
-        .search-bar {
-            margin-bottom: 20px;
-        }
-
-        .search-bar input[type="text"] {
-            width: 70%;
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-        }
-
-        .search-bar button {
-            padding: 10px 15px;
-            border: none;
-            background-color: #27ae60;
-            color: white;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .search-bar button:hover {
-            background-color: #219150;
-        }
-
-        .notification-item {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-        }
-
-        footer {
-            text-align: center;
-            padding: 15px;
-            background-color: #2c3e50;
-            color: white;
-            position: fixed;
-            width: 100%;
-            bottom: 0;
-        }
-    </style>
 </head>
 <body>
-    <header>
-        <h1>Welcome, {{ username }}!</h1>
-        <nav>
-            <a href="/logout">Logout</a>
-        </nav>
-    </header>
+    <!-- Navbar -->
+    <nav>
+        <h1>Movie Tracker</h1>
+        <ul>
+            <li><a href="/">Watch Later ({{ watchlist_count }})</a></li>
+            <li><a href="/">Watched ({{ watched_count }})</a></li>
+            <li><a href="/">Notifications</a></li>
+            <li><a href="/">Logout</a></li>
+        </ul>
+    </nav>
 
+    <!-- Welcome message -->
+    <section class="welcome">
+        <h2>Welcome, {{ username }}!</h2>
+        <p>Search for your favorite movies and start tracking them.</p>
+    </section>
+
+    <!-- Main content -->
     <main>
-        <!-- User dashboard -->
-        <div class="dashboard">
-            <h2>Your Dashboard</h2>
-
-            <div class="movie-lists">
-                <button onclick="window.location.href='/watchlist'">Watch Later ({{ watchlist_count }})</button>
-                <button onclick="window.location.href='/watched'">Watched ({{ watched_count }})</button>
-            </div>
-
+        <div class="search-movies-box">
+            <!-- Search Bar -->
             <div class="search-bar">
-                <form action="/search" method="GET">
+                <form action="/homepage" method="POST">
                     <input type="text" name="query" placeholder="Search movies..." required>
                     <button type="submit">Search</button>
                 </form>
             </div>
 
-            <p>Click on a movie to see details, add reviews, or mark it in your lists.</p>
-        </div>
+            <!-- Movie Results -->
+            <div class="movie-results">
+                {% if movies %}
+                    {% for movie in movies %}
+                        <div class="movie-card">
+                            <!-- Poster -->
+                            {% if movie.poster_url %}
+                                <img src="{{ movie.poster_url }}" alt="{{ movie.title }} poster">
+                            {% else %}
+                                <div class="placeholder-poster">No Image</div>
+                            {% endif %}
+                            
+                            <!-- Movie Info -->
+                            <div>
+                                <h3>{{ movie.title }}</h3>
+                                <p class="release-date">Release: {{ movie.release_date or 'N/A' }}</p>
+                                <p class="overview">{{ movie.overview or 'No overview available.' }}</p>
+                                <p class="ratings">⭐ {{ movie.vote_average or 0 }} | Votes: {{ movie.vote_count or 0 }}</p>
+                                <button onclick="openMovieModal('{{ movie.id }}')">Details</button>
 
-        <!-- Notifications / Recent activity -->
-        <div class="notifications">
-            <h2>Notifications</h2>
-            {% if notifications %}
-                {% for note in notifications %}
-                    <div class="notification-item">{{ note }}</div>
-                {% endfor %}
-            {% else %}
-                <p>No notifications yet.</p>
-            {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="no-movies">No movies found. Start searching!</p>
+                {% endif %}
+            </div>
+
         </div>
     </main>
+    <!-- Add this right before the closing </body> tag in homepage.html -->
 
-    <footer>
-        &copy; 2025 Movie Tracker
-    </footer>
+<!-- Modal -->
+<div id="movieModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <div id="modalBody">
+            <!-- Movie details will be loaded here -->
+            <div class="loading">Loading...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Get modal elements
+    const modal = document.getElementById('movieModal');
+    const span = document.getElementsByClassName('close')[0];
+
+    // Function to open modal and load movie details
+    function openMovieModal(movieId) {
+        modal.style.display = 'block';
+        
+        // Fetch movie details
+        fetch(`/movie/${movieId}`)
+            .then(response => response.json())
+            .then(data => {
+                displayMovieDetails(data);
+            })
+            .catch(error => {
+                document.getElementById('modalBody').innerHTML = '<p>Error loading movie details.</p>';
+            });
+    }
+
+    // Function to display movie details in modal
+    function displayMovieDetails(movie) {
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <div class="modal-movie-details">
+                ${movie.backdrop_url ? `<img src="${movie.backdrop_url}" alt="${movie.title}" class="modal-backdrop">` : ''}
+                
+                <div class="modal-info-container">
+                    ${movie.poster_url ? `<img src="${movie.poster_url}" alt="${movie.title}" class="modal-poster">` : '<div class="placeholder-poster">No Image</div>'}
+                    
+                    <div class="modal-text-info">
+                        <h2>${movie.title}</h2>
+                        <p class="modal-tagline">${movie.tagline || ''}</p>
+                        <p class="modal-release"><strong>Release Date:</strong> ${movie.release_date || 'N/A'}</p>
+                        <p class="modal-runtime"><strong>Runtime:</strong> ${movie.runtime ? movie.runtime + ' minutes' : 'N/A'}</p>
+                        <p class="modal-rating">⭐ ${movie.vote_average || 0} / 10 (${movie.vote_count || 0} votes)</p>
+                        <p class="modal-genres"><strong>Genres:</strong> ${movie.genres || 'N/A'}</p>
+                        <p class="modal-overview"><strong>Overview:</strong><br>${movie.overview || 'No overview available.'}</p>
+                        
+                        <div class="modal-actions">
+                            <button class="btn-watchlist" onclick="addToWatchlist(${movie.id})">Add to Watch Later</button>
+                            <button class="btn-watched" onclick="addToWatched(${movie.id})">Mark as Watched</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Close modal when X is clicked
+    span.onclick = function() {
+        modal.style.display = 'none';
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    // Placeholder functions for watchlist/watched
+    function addToWatchlist(movieId) {
+        // You'll implement this later
+        alert('Added to watchlist: ' + movieId);
+    }
+
+    function addToWatched(movieId) {
+        // You'll implement this later
+        alert('Marked as watched: ' + movieId);
+    }
+</script>
 </body>
 </html>
