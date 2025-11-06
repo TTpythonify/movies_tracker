@@ -6,16 +6,20 @@
     <title>Movie Tracker - Home</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
-
 </head>
 <body>
     <!-- Navbar -->
     <nav>
         <h1>Movie Tracker</h1>
         <ul>
-            <li><a href="#">Watch Later ({{ watchlist_count }})</a></li>
-            <li><a href="#">Watched ({{ watched_count }})</a></li>
-            <li><a href="#">Notifications</a></li>
+            <li><a href="#" onclick="openWatchlistModal()">Watch Later ({{ watchlist_count }})</a></li>
+            <li><a href="#" onclick="openWatchedModal()">Watched ({{ watched_count }})</a></li>
+            <li>
+                <a href="#" onclick="openNotificationsModal(); return false;">
+                    Notifications ({{ notifications_count }})
+                </a>
+            </li>
+
             <li><a href="/">Logout</a></li>
         </ul>
     </nav>
@@ -63,12 +67,32 @@
         </div>
     </main>
 
-    <!-- Modal -->
+    <!-- Movie Details Modal -->
     <div id="movieModal" class="modal" style="display: none;">
         <div class="modal-content">
-            <span class="close">&times;</span>
+            <span class="close" onclick="closeMovieModal()">&times;</span>
             <div id="message" style="display:none; color: green; margin: 10px 0; font-size: large;"></div>
             <div id="modalBody">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Watchlist Modal -->
+    <div id="watchlistModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeWatchlistModal()">&times;</span>
+            <div id="watchlistBody">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Watched Modal -->
+    <div id="watchedModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeWatchedModal()">&times;</span>
+            <div id="watchedBody">
                 <div class="loading">Loading...</div>
             </div>
         </div>

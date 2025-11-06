@@ -1,11 +1,11 @@
 import os
 import bcrypt
 import requests
+from datetime import datetime
 from pymongo import MongoClient
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from dotenv import load_dotenv
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 
-# Load environment variables from .env
 load_dotenv()
 
 # Flask app setup
@@ -18,7 +18,7 @@ MONGO_URI = os.environ.get("MONGO_URI")
 
 # MongoDB connection
 client = MongoClient(MONGO_URI)
-db = client.get_default_database()  # uses database from MONGO_URI
+db = client.get_default_database() 
 user_collection = db["users"]
 movie_collection = db["movies"]
 
@@ -33,6 +33,23 @@ def search_movie_by_api_key(query, api_key):
     if response.status_code == 200:
         return response.json().get("results", [])
     return []
+
+def get_movie_details_from_tmdb(movie_id):
+    """Fetch movie details from TMDB API"""
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}&language=en-US"
+    response = requests.get(url)
+    if response.status_code == 200:
+        movie_data = response.json()
+        return {
+            "id": movie_data.get("id"),
+            "title": movie_data.get("title"),
+            "release_date": movie_data.get("release_date"),
+            "overview": movie_data.get("overview"),
+            "vote_average": round(movie_data.get("vote_average", 0), 1),
+            "vote_count": movie_data.get("vote_count"),
+            "poster_url": IMAGE_BASE + "w342" + movie_data.get("poster_path") if movie_data.get("poster_path") else None,
+        }
+    return None
 
 # --------------------- Routes --------------------- #
 @app.route('/', methods=['GET','POST'])
@@ -78,10 +95,11 @@ def home_page():
     # Fetch user's watched and watchlist safely
     user_doc = user_collection.find_one(
         {"username": username},
-        {"_id": 0, "watched": 1, "watch_list": 1}
+        {"_id": 0, "watched": 1, "watch_list": 1,"notifications": 1}
     )
     watched_count = len(user_doc.get('watched', [])) if user_doc else 0
     watchlist_count = len(user_doc.get('watch_list', [])) if user_doc else 0
+    notifications_count = len(user_doc.get('notifications', [])) if user_doc else 0
 
     if request.method == 'POST':
         user_query = request.form.get("query", "").lower()
@@ -113,8 +131,72 @@ def home_page():
         username=username.upper(),
         movies=query_results,
         watchlist_count=watchlist_count,
-        watched_count=watched_count
+        watched_count=watched_count,
+        notifications_count=notifications_count
     )
+
+@app.route('/get_watchlist', methods=['GET'])
+def get_watchlist():
+    """API endpoint to get user's watchlist"""
+    username = session.get("username", "").lower()
+    if not username:
+        return jsonify({"error": "Not logged in"}), 401
+    
+    user_doc = user_collection.find_one(
+        {"username": username},
+        {"_id": 0, "watch_list": 1}
+    )
+    
+    watchlist_ids = user_doc.get('watch_list', []) if user_doc else []
+    
+    # Fetch movie details for each movie in watchlist
+    movies = []
+    for movie_id in watchlist_ids:
+        movie_details = get_movie_details_from_tmdb(movie_id)
+        if movie_details:
+            movies.append(movie_details)
+    
+    return jsonify({"movies": movies})
+
+@app.route('/get_notifications', methods=['GET'])
+def get_notifications():
+    username = session.get("username", "").lower()
+    if not username:
+        return jsonify({"error": "Not logged in"}), 401
+    
+    user_doc = user_collection.find_one(
+        {"username": username},
+        {"_id": 0, "notifications": 1}
+    )
+    
+    notifications = user_doc.get("notifications", []) if user_doc else []
+    return jsonify({"notifications": notifications})
+
+
+@app.route('/get_watched', methods=['GET'])
+def get_watched():
+    """API endpoint to get user's watched movies"""
+    username = session.get("username", "").lower()
+    if not username:
+        return jsonify({"error": "Not logged in"}), 401
+    
+    user_doc = user_collection.find_one(
+        {"username": username},
+        {"_id": 0, "watched": 1}
+    )
+    
+    watched_ids = user_doc.get('watched', []) if user_doc else []
+    
+    # Fetch movie details for each watched movie
+    movies = []
+    for movie_id in watched_ids:
+        movie_details = get_movie_details_from_tmdb(movie_id)
+        if movie_details:
+            movies.append(movie_details)
+    
+    return jsonify({"movies": movies})
+
+
 
 @app.route('/movie/<int:movie_id>', methods=['GET'])
 def get_movie_details(movie_id):
@@ -159,9 +241,9 @@ def add_to_watchlist():
     )
 
     if result.modified_count > 0:
-        message = f"Movie {movie_id} added to {username}'s watchlist."
+        message = f"Movie added to your watchlist!"
     else:
-        message = f"Movie {movie_id} is already in {username}'s watchlist."
+        message = f"Movie is already in your watchlist."
     return jsonify({"message": message})
 
 @app.route('/add_to_watched', methods=['POST'])
@@ -176,9 +258,9 @@ def add_to_watched():
     )
 
     if result.modified_count > 0:
-        message = f"Movie {movie_id} marked as watched for {username}."
+        message = f"Movie marked as watched!"
     else:
-        message = f"Movie {movie_id} is already in {username}'s watched list."
+        message = f"Movie is already in your watched list."
     return jsonify({"message": message})
 
 @app.route('/submit_reviews', methods=['POST'])
@@ -195,16 +277,49 @@ def submit_reviews():
         "date": reviewdate
     }
 
+
     movie_collection.update_one(
         {"id": movieId},
         {"$push": {"reviews": review}}
     )
-    return jsonify({"message": reviewText})
+    add_notification(movieId, reviewText, username)
+    
+    return jsonify({"message": "Review submitted successfully!"})
 
-def get_movies_info(movie_id):
-    movie = movie_collection.find_one({"id": movie_id}, {"_id": 0})
-    return movie
+
+
+def add_notification(movie_id, review_text, reviewer):
+
+    users_cursor = user_collection.find(
+        {"watch_list": movie_id},
+        {"_id": 0, "username": 1}
+    )
+
+    for user in users_cursor:
+        username = user["username"].lower()
+        notification = {
+            "movie_id": movie_id,
+            "reviewer": reviewer,
+            "text": review_text,
+            "date": datetime.utcnow().isoformat()
+        }
+
+        user_collection.update_one(
+            {"username": username},
+            {"$push": {"notifications": notification}}
+        )
+
+
 
 # --------------------- Run App --------------------- #
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000,threaded=False)
+
+
+
+"""
+so add notifications to the users. it will be a list of dict. same way hoe the revies is stored
+when user submits a review, i call the function to add notifications, take in the movie id
+gets the list of users with that movie id in their watch list. 
+
+"""
