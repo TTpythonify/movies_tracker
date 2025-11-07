@@ -315,11 +315,3 @@ def add_notification(movie_id, review_text, reviewer):
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000,threaded=False)
 
-
-
-"""
-so add notifications to the users. it will be a list of dict. same way hoe the revies is stored
-when user submits a review, i call the function to add notifications, take in the movie id
-gets the list of users with that movie id in their watch list. 
-
-"""
