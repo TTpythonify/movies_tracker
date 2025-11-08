@@ -19,7 +19,6 @@
                     Notifications ({{ notifications_count }})
                 </a>
             </li>
-
             <li><a href="/">Logout</a></li>
         </ul>
     </nav>
@@ -93,6 +92,16 @@
         <div class="modal-content">
             <span class="close" onclick="closeWatchedModal()">&times;</span>
             <div id="watchedBody">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications Modal -->
+    <div id="notificationsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeNotificationsModal()">&times;</span>
+            <div id="notificationsBody">
                 <div class="loading">Loading...</div>
             </div>
         </div>
