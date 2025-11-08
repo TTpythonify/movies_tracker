@@ -13,19 +13,21 @@ MONGO_URI = os.environ.get("MONGO_URI")
 if not TMDB_API_KEY or not MONGO_URI:
     raise ValueError("TMDB_API_KEY and MONGO_URI environment variables are required")
 
-# MongoDB connection with SSL certificate and error handling
+# MongoDB connection with SSL certificate - don't test connection at startup
 try:
     client = MongoClient(
         MONGO_URI, 
-        serverSelectionTimeoutMS=5000,
-        tlsCAFile=certifi.where()  # Use certifi for SSL certificates
+        serverSelectionTimeoutMS=30000,  # Increased timeout
+        connectTimeoutMS=30000,
+        socketTimeoutMS=30000,
+        tlsCAFile=certifi.where(),
+        retryWrites=True,
+        w='majority'
     )
-    # Test connection
-    client.admin.command('ping')
-    db = client.get_database()  # Gets database from URI
+    db = client.get_database()
     user_collection = db["users"]
     movie_collection = db["movies"]
-    logger.info("MongoDB connection successful")
-except ServerSelectionTimeoutError as e:
-    logger.error(f"MongoDB connection failed: {e}")
+    logger.info("MongoDB client initialized (connection will be established on first use)")
+except Exception as e:
+    logger.error(f"MongoDB initialization failed: {e}")
     raise
