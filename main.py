@@ -310,8 +310,6 @@ def add_notification(movie_id, review_text, reviewer):
         )
 
 
-
-# --------------------- Run App --------------------- #
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000,threaded=False)
 
