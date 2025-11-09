@@ -556,7 +556,50 @@ main {
     font-size: 0.85rem;
 }
 
-.btn-watchlist {
+.btn-mark-seen:active {
+    transform: translateY(0);
+}
+
+/* Responsive for list modal and notifications */
+@media (max-width: 768px) {
+    .list-modal-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 15px;
+    }
+
+    .list-movie-card img,
+    .list-movie-card .placeholder-poster {
+        height: 160px;
+    }
+
+    .list-modal-content h2 {
+        font-size: 1.4rem;
+    }
+    
+    .notification-item {
+        padding: 12px 15px;
+    }
+    
+    .notification-text {
+        font-size: 0.9rem;
+    }
+    
+    .notification-review {
+        font-size: 0.85rem;
+        padding: 10px;
+    }
+    
+    .notification-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .btn-mark-seen {
+        width: 100%;
+        padding: 8px 16px;
+    }
+}watchlist {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
 }
@@ -866,6 +909,8 @@ main {
     box-shadow: 0 3px 15px rgba(0, 0, 0, 0.1);
     cursor: pointer;
     transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
 }
 
 .list-movie-card:hover {
@@ -920,7 +965,132 @@ main {
     font-weight: 600;
 }
 
-/* Responsive for list modal */
+/* Mark as Watched button in watchlist */
+.btn-mark-watched {
+    width: 100%;
+    padding: 10px 15px;
+    background: linear-gradient(135deg, #27ae60 0%, #219150 100%);
+    color: white;
+    border: none;
+    border-radius: 0 0 12px 12px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+    margin-top: auto;
+}
+
+.btn-mark-watched:hover {
+    background: linear-gradient(135deg, #219150 0%, #27ae60 100%);
+    box-shadow: 0 -2px 10px rgba(39, 174, 96, 0.3);
+}
+
+/* ========== NOTIFICATIONS STYLING ========== */
+
+.notifications-list {
+    list-style: none;
+    padding: 0;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.notifications-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.notifications-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.notifications-list::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+}
+
+.notification-item {
+    background: white;
+    padding: 15px 18px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    border-left: 4px solid #667eea;
+}
+
+.notification-item:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    transform: translateX(2px);
+}
+
+.notification-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.notification-text {
+    margin: 0;
+    color: #333;
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+.reviewer-name {
+    color: #667eea;
+    font-weight: 700;
+}
+
+.notification-review {
+    margin: 0;
+    padding: 12px;
+    background: #f9f9f9;
+    border-radius: 8px;
+    color: #555;
+    font-style: italic;
+    line-height: 1.6;
+    font-size: 0.9rem;
+    border-left: 3px solid #764ba2;
+}
+
+/* Notification footer with date and button */
+.notification-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.notification-date {
+    font-size: 0.75rem;
+    color: #999;
+    font-weight: 500;
+}
+
+/* Mark as Seen button */
+.btn-mark-seen {
+    padding: 6px 16px;
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.btn-mark-seen:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+    background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+}
+
+.btn-mark-seen:active {
+    transform: translateY(0);
+}
+
+/* Responsive for list modal and notifications */
 @media (max-width: 768px) {
     .list-modal-grid {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -934,5 +1104,29 @@ main {
 
     .list-modal-content h2 {
         font-size: 1.4rem;
+    }
+    
+    .notification-item {
+        padding: 12px 15px;
+    }
+    
+    .notification-text {
+        font-size: 0.9rem;
+    }
+    
+    .notification-review {
+        font-size: 0.85rem;
+        padding: 10px;
+    }
+    
+    .notification-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .btn-mark-seen {
+        width: 100%;
+        padding: 8px 16px;
     }
 }

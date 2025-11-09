@@ -75,13 +75,51 @@ function openWatchlistModal() {
     fetch('/get_watchlist')
         .then(response => response.json())
         .then(data => {
-            displayListModal(data.movies, 'watchlistBody', 'Watch Later List', 'Your watch later list is empty. Start adding movies!');
+            displayWatchlistModal(data.movies);
         })
         .catch(error => {
             document.getElementById('watchlistBody').innerHTML = '<p>Error loading watchlist.</p>';
         });
 }
 
+// Function to display watchlist with "Mark as Watched" button
+function displayWatchlistModal(movies) {
+    const body = document.getElementById('watchlistBody');
+    
+    if (movies && movies.length > 0) {
+        body.innerHTML = `
+            <div class="list-modal-content">
+                <h2>Watch Later List</h2>
+                <div class="list-modal-grid">
+                    ${movies.map(movie => `
+                        <div class="list-movie-card">
+                            <div onclick="openMovieModal(${movie.id})">
+                                ${movie.poster_url 
+                                    ? `<img src="${movie.poster_url}" alt="${movie.title}">` 
+                                    : '<div class="placeholder-poster">No Image</div>'}
+                                <div class="list-movie-info">
+                                    <h3>${movie.title}</h3>
+                                    <p class="release-date">${movie.release_date || 'N/A'}</p>
+                                    <p class="ratings">⭐ ${movie.vote_average || 0}</p>
+                                </div>
+                            </div>
+                            <button class="btn-mark-watched" onclick="addToWatched(${movie.id})">
+                                Mark as Watched
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    } else {
+        body.innerHTML = `
+            <div class="list-modal-content">
+                <h2>Watch Later List</h2>
+                <p class="no-movies">Your watch later list is empty. Start adding movies!</p>
+            </div>
+        `;
+    }
+}
 
 // Function to open watched modal
 function openWatchedModal() {
@@ -105,7 +143,7 @@ function openNotificationsModal() {
     const notificationsBody = document.getElementById('notificationsBody');
     notificationsBody.innerHTML = '<div class="loading">Loading...</div>';
 
-    fetch('/get_notifications')  // Make sure you have a Flask route returning notifications
+    fetch('/get_notifications')
         .then(response => response.json())
         .then(data => {
             displayNotifications(data.notifications);
@@ -116,7 +154,6 @@ function openNotificationsModal() {
         });
 }
 
-
 function displayNotifications(notifications) {
     const body = document.getElementById('notificationsBody');
     
@@ -125,11 +162,21 @@ function displayNotifications(notifications) {
             <div class="list-modal-content">
                 <h2>Notifications</h2>
                 <ul class="notifications-list">
-                    ${notifications.map(n => `
-                        <li>
-                            <strong>${n.reviewer}</strong> commented on movie ID ${n.movie_id}:
-                            <p>${n.text}</p>
-                            <span class="notification-date">${n.date}</span>
+                    ${notifications.map((n, index) => `
+                        <li class="notification-item">
+                            <div class="notification-content">
+                                <p class="notification-text">
+                                    <strong class="reviewer-name">${n.reviewer}</strong> 
+                                    reviewed a movie in your watchlist
+                                </p>
+                                <p class="notification-review">"${n.text}"</p>
+                                <div class="notification-footer">
+                                    <span class="notification-date">${formatDate(n.date)}</span>
+                                    <button class="btn-mark-seen" onclick="markNotificationSeen(${index})">
+                                        Mark as Seen
+                                    </button>
+                                </div>
+                            </div>
                         </li>
                     `).join('')}
                 </ul>
@@ -139,9 +186,48 @@ function displayNotifications(notifications) {
         body.innerHTML = `
             <div class="list-modal-content">
                 <h2>Notifications</h2>
-                <p>You have no notifications yet.</p>
+                <p class="no-movies">You have no notifications yet.</p>
             </div>
         `;
+    }
+}
+
+function markNotificationSeen(notificationIndex) {
+    fetch('/mark_notification_seen', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ notificationIndex })
+    })
+    .then(res => res.json())
+    .then(data => {
+        showMessage(data.message || 'Notification removed');
+        // Refresh notifications
+        openNotificationsModal();
+        // Update notification count
+        setTimeout(() => location.reload(), 1000);
+    })
+    .catch(err => {
+        console.error('Error marking notification as seen:', err);
+        showMessage('Failed to mark notification as seen');
+    });
+}
+
+
+// Helper function to format date nicely
+function formatDate(isoDate) {
+    const date = new Date(isoDate);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+        return 'Today';
+    } else if (diffDays === 1) {
+        return 'Yesterday';
+    } else if (diffDays < 7) {
+        return `${diffDays} days ago`;
+    } else {
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
 }
 

@@ -33,9 +33,6 @@ def health_check():
 
 
 
-
-
-
 @main_routes.route('/', methods=['GET','POST'])
 def login_page():
     if request.method == 'POST':
@@ -100,6 +97,7 @@ def signup_page():
     
     return render_template("signup_page.html")
 
+
 @main_routes.route('/homepage', methods=['GET', 'POST'])
 def home_page():
     username = session.get("username", "")
@@ -119,9 +117,14 @@ def home_page():
         watchlist_count = len(user_doc.get('watch_list', [])) if user_doc else 0
         notifications_count = len(user_doc.get('notifications', [])) if user_doc else 0
 
+        # If it's a POST request (user searched)
         if request.method == 'POST':
             user_query = request.form.get("query", "").strip().lower()
             if not user_query:
+                # If empty search, just show default movies again
+                query_results = list(movie_collection.aggregate([{"$sample": {"size": 10}}]))
+                for movie in query_results:
+                    movie.pop('_id', None)
                 return render_template(
                     "homepage.html",
                     username=username.upper(),
@@ -131,13 +134,14 @@ def home_page():
                     notifications_count=notifications_count
                 )
 
+            # Check if movies for that query already exist in DB
             existing_movies = list(movie_collection.find({"user_query": user_query}))
-
             if existing_movies:
                 for movie in existing_movies:
                     movie.pop('_id', None)
                 query_results = existing_movies
             else:
+                # Fetch new movies from API
                 user_query_results = search_movie_by_api_key(user_query, TMDB_API_KEY)
                 for movie in user_query_results:
                     query_results.append({
@@ -153,6 +157,11 @@ def home_page():
                     })
                 if query_results:
                     movie_collection.insert_many(query_results)
+        else:
+            # If it's a GET request (user just logged in), show random movies
+            query_results = list(movie_collection.aggregate([{"$sample": {"size": 20}}]))
+            for movie in query_results:
+                movie.pop('_id', None)
 
     except Exception as e:
         logger.error(f"Homepage error: {e}")
@@ -166,6 +175,7 @@ def home_page():
         watched_count=watched_count,
         notifications_count=notifications_count
     )
+
 
 @main_routes.route('/get_watchlist', methods=['GET'])
 def get_watchlist():
@@ -217,6 +227,51 @@ def get_notifications():
     except Exception as e:
         logger.error(f"Get notifications error: {e}")
         return jsonify({"error": "Failed to fetch notifications"}), 500
+    
+
+# Add this new route to app/routes.py
+
+@main_routes.route('/mark_notification_seen', methods=['POST'])
+def mark_notification_seen():
+    username = session.get("username", "")
+    if not username:
+        return jsonify({"error": "Not logged in"}), 401
+    
+    try:
+        data = request.get_json()
+        notification_index = data.get('notificationIndex')
+        
+        if notification_index is None:
+            return jsonify({"error": "Notification index required"}), 400
+
+        # Get user's notifications
+        user_doc = user_collection.find_one(
+            {"username": username.lower()},
+            {"notifications": 1}
+        )
+        
+        if not user_doc or 'notifications' not in user_doc:
+            return jsonify({"error": "No notifications found"}), 404
+        
+        notifications = user_doc['notifications']
+        
+        # Check if index is valid
+        if notification_index < 0 or notification_index >= len(notifications):
+            return jsonify({"error": "Invalid notification index"}), 400
+        
+        # Remove the notification at the specified index
+        notifications.pop(notification_index)
+        
+        # Update the user document with the new notifications array
+        user_collection.update_one(
+            {"username": username.lower()},
+            {"$set": {"notifications": notifications}}
+        )
+        
+        return jsonify({"message": "Notification marked as seen"})
+    except Exception as e:
+        logger.error(f"Mark notification seen error: {e}")
+        return jsonify({"error": "Failed to mark notification as seen"}), 500
     
 
 @main_routes.route('/get_watched', methods=['GET'])
@@ -323,13 +378,20 @@ def add_to_watched():
         if not movie_id:
             return jsonify({"error": "Movie ID required"}), 400
 
+        # Add to watched list
         result = user_collection.update_one(
             {"username": username.lower()},
             {"$addToSet": {"watched": movie_id}}
         )
 
+        # Remove from watch list (if it exists there)
+        user_collection.update_one(
+            {"username": username.lower()},
+            {"$pull": {"watch_list": movie_id}}
+        )
+
         if result.modified_count > 0:
-            message = "Movie marked as watched!"
+            message = "Movie marked as watched and removed from watch later!"
         else:
             message = "Movie is already in your watched list."
         return jsonify({"message": message})
