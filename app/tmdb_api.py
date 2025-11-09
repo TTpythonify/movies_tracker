@@ -14,19 +14,20 @@ if not TMDB_API_KEY or not MONGO_URI:
     raise ValueError("TMDB_API_KEY and MONGO_URI environment variables are required")
 
 
+
 try:
     client = MongoClient(
         MONGO_URI,
         serverSelectionTimeoutMS=30000,
         connectTimeoutMS=30000,
         socketTimeoutMS=30000,
-        tls=True,                 
+        tls=True,
+        tlsAllowInvalidCertificates=False,
         retryWrites=True,
         w="majority"
     )
 
     db = client["movie_tracker_123"]
-
 
     # Define collections
     user_collection = db["users"]
