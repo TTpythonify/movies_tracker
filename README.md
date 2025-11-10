@@ -5,7 +5,6 @@
 ![MongoDB](https://img.shields.io/badge/MongoDB-Cloud-brightgreen.svg)
 ![Docker](https://img.shields.io/badge/Docker-Enabled-blue.svg)
 ![Deployment](https://img.shields.io/badge/Deployed%20on-Render-purple.svg)
-![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 A full-stack web application that allows users to search, track, and manage movies in a simple and interactive way.
 
@@ -52,7 +51,7 @@ A full-stack web application that allows users to search, track, and manage movi
 movies/
 │
 ├── app/
-│   ├── static/              # CSS, JS, images
+│   ├── static/              # CSS, JS
 │   ├── templates/           # HTML templates
 │   ├── __init__.py
 │   ├── routes.py            # Flask routes and endpoints
@@ -73,7 +72,7 @@ movies/
 
 ### 1. Clone the repository
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/TTpythonify/movies_tracker.git
 cd movies
 ```
 
@@ -187,12 +186,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ---
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
 ## 🙏 Credits & Acknowledgments
 
 - **Flask**: [https://flask.palletsprojects.com/](https://flask.palletsprojects.com/)
@@ -200,15 +193,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **TMDB API**: [https://www.themoviedb.org/documentation/api](https://www.themoviedb.org/documentation/api)
 - **Render**: [https://render.com/](https://render.com/)
 - **Docker**: [https://www.docker.com/](https://www.docker.com/)
-
----
-
-## 📧 Contact
-
-For questions or feedback, please reach out:
-
-- **Project Link**: [https://github.com/yourusername/movie-tracker](https://github.com/yourusername/movie-tracker)
-- **Live Demo**: [https://movies-tracker-pop1.onrender.com/](https://movies-tracker-pop1.onrender.com/)
 
 ---
 
